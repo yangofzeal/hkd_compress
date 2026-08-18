@@ -12,16 +12,6 @@ FREE_FILE = "dataset_free.npz"
 LARGE_FILE = "dataset_large.npz"
 
 
-def _install_python34_path_compat():
-    try:
-        import hkd_compress.core as core
-    except Exception:
-        return None
-    if hasattr(core, "Path"):
-        core.Path = lambda value: str(value)
-    return core
-
-
 def _sha256(path):
     h = hashlib.sha256()
     f = open(str(path), "rb")
@@ -36,11 +26,9 @@ def _sha256(path):
     return h.hexdigest()
 
 
-def _value(name, core, default=None):
+def _value(name, default=None):
     if hasattr(hkd_compress, name):
         return getattr(hkd_compress, name)
-    if core is not None and hasattr(core, name):
-        return getattr(core, name)
     return default
 
 
@@ -58,13 +46,8 @@ def _looks_like_limit_error(exc):
 
 
 def main():
-    core = _install_python34_path_compat()
-    edition = _value("EDITION", core, "UNKNOWN")
-    limit = _value("FREE_LIMIT", core, None)
-    if limit is None:
-        limit = _value("MAX_INPUT_BYTES", core, None)
-    if limit is None and str(edition).upper() == "FREE":
-        limit = FREE_BYTES
+    edition = str(_value("EDITION", "UNKNOWN")).upper()
+    limit = _value("FREE_MAX_FILE_BYTES", None)
 
     print("edition=%s" % edition)
     print("limit=%s" % limit)
@@ -82,9 +65,9 @@ def main():
     restored = None
     try:
         try:
-            r = hkd_compress.compress(LARGE_FILE)
+            result = hkd_compress.compress(LARGE_FILE)
         except Exception as exc:
-            if str(edition).upper() == "FREE" and _looks_like_limit_error(exc):
+            if edition == "FREE" and _looks_like_limit_error(exc):
                 print("free_limit_rejection=True")
                 print("rejected_bytes=%d" % large_size)
                 print("PASS=True")
@@ -93,17 +76,20 @@ def main():
             print("ERROR=%s" % exc)
             return 1
 
-        if str(edition).upper() == "FREE":
+        if edition == "FREE":
             print("PASS=False")
             print("ERROR=Free edition accepted one byte over the limit")
             return 1
 
-        compressed = str(r["output"])
-        d = hkd_compress.decompress(compressed)
-        restored = str(d["output"])
+        compressed = str(result["output"])
+        decoded = hkd_compress.decompress(compressed)
+        restored = str(decoded["output"])
         exact = _sha256(LARGE_FILE) == _sha256(restored)
+
+        print("large_result=ALLOWED")
         print("compressed_output=%s" % compressed)
-        print("compressed_bytes=%s" % r.get("output_bytes", os.path.getsize(compressed)))
+        print("compressed_bytes=%s" %
+              result.get("output_bytes", os.path.getsize(compressed)))
         print("exact=%s" % exact)
         print("PASS=%s" % exact)
         return 0 if exact else 1

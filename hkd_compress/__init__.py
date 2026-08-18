@@ -1,71 +1,86 @@
-# HKD∞ OBFUSCATE v3 — PYTHON-3.4-COMPATIBLE PROTECTED MODULE
-# Source payload; no marshal/code-object version dependency.
-# All protection work occurs once at import; protected calls have no wrapper.
-import hashlib as _hh
-import zlib as _hz
+# -*- coding: utf-8 -*-
+# HKD OBFUSCATE v4 - portable source payload, no marshal/code-object dependency.
+# Protection is import-time only; protected functions have no per-call wrapper.
+def _hkd_v4_bootstrap(_g):
+    import binascii as _hb
+    import hashlib as _hh
+    import struct as _hs
+    import zlib as _hz
 
-_B=(bytes.fromhex('aa72ab16e72a51212083ed8431074e8ad5ffd79c42c1963925f4e21302709169b2074f44e9b535f4773f9a3290eb4cbacc3f62615518f6edf3ee3fdbec53583793004c0d7620d4f4d9f5a632690644a7bb6b2a31c89c66fce3911b09ffb4b2949c82e2ff2fa4ceed7a0e53af2d525d97ca834c3908'),)
-_I=(0,)
-_L=(bytes.fromhex('efb5667dc4a33a76f3dee9d9aab52483b362ea203c4b30f7b1ea48ce5ae43838'),)
-_R=bytes.fromhex('efb5667dc4a33a76f3dee9d9aab52483b362ea203c4b30f7b1ea48ce5ae43838')
-_S1=bytes.fromhex('b4c44a1d49f84630e6a3d8f9e940b5fe9bac91bad310595a9d955dd8b13e68ff')
-_S2=bytes.fromhex('7e50262985a1f8adbb970e2cb7aaab9a1c50293fd48e23303c28fc9662bd3098')
+    _b = (
+        _hb.unhexlify('aa72ab16e72a51212083ed8431074e8ad5ffd79c42c1963925f4e21302709169b2074f44e9b535f4773f9a3290eb4cbacc3f62615518f6edf3ee3fdbec53583793004c0d7620d4f4d9f5a632690644a7bb6b2a31c89c66fce3911b09ffb4b2949c82e2ff2fa4ceed7a0e53af2d525d97ca834c3908'),
+    )
+    _inv = (0,)
+    _leaves = (
+        _hb.unhexlify('efb5667dc4a33a76f3dee9d9aab52483b362ea203c4b30f7b1ea48ce5ae43838'),
+    )
+    _root = _hb.unhexlify('efb5667dc4a33a76f3dee9d9aab52483b362ea203c4b30f7b1ea48ce5ae43838')
+    _share1 = _hb.unhexlify('55eda5f163d89abc0fa9ee2f50360fb8a1798cbdee89b7724aa601d666ef165c')
+    _share2 = _hb.unhexlify('9f79c9c5af812421529d38fa0edc11dc26853438e917cd18eb1ba098b56c4e3b')
 
-def _x(a,b):
-    return bytes(i^j for i,j in zip(a,b))
+    def _u32(_n):
+        return _hs.pack('>I', _n)
 
-def _n4(n):
-    return n.to_bytes(4,'big')
+    def _xor(_a, _c):
+        _o = bytearray(len(_a))
+        _i = 0
+        while _i < len(_a):
+            _o[_i] = _a[_i] ^ _c[_i]
+            _i += 1
+        return bytes(_o)
 
-def _ks(k,idx,n):
-    o=bytearray(); c=0; s=k+_n4(idx)
-    while len(o)<n:
-        o.extend(_hh.sha256(s+_n4(c)).digest()); c+=1
-    return bytes(o[:n])
+    def _ks(_key, _index, _length):
+        _o = bytearray()
+        _counter = 0
+        _seed = _key + _u32(_index)
+        while len(_o) < _length:
+            _o.extend(_hh.sha256(_seed + _u32(_counter)).digest())
+            _counter += 1
+        return bytes(_o[:_length])
 
-def _mr(v):
-    if not v:
-        return _hh.sha256(b'').digest()
-    v=list(v)
-    while len(v)>1:
-        if len(v)&1: v.append(v[-1])
-        v=[_hh.sha256(v[i]+v[i+1]).digest() for i in range(0,len(v),2)]
-    return v[0]
+    def _merkle(_values):
+        if not _values:
+            return _hh.sha256(b'').digest()
+        _level = list(_values)
+        while len(_level) > 1:
+            if len(_level) & 1:
+                _level.append(_level[-1])
+            _next = []
+            _i = 0
+            while _i < len(_level):
+                _next.append(_hh.sha256(_level[_i] + _level[_i + 1]).digest())
+                _i += 2
+            _level = _next
+        return _level[0]
 
-_K=_x(_S1,_S2)
-_P=[]
-_V=[]
-for _i in range(len(_I)):
-    _m=_B[_I[_i]]
-    _r=_x(_m,_ks(_K,_i,len(_m)))
-    _P.append(_r)
-    _V.append(_hh.sha256(_n4(_i)+_r).digest())
-if tuple(_V)!=_L or _mr(_V)!=_R:
-    raise ImportError('HKD∞ SHA-256 integrity verification failed')
+    _key = _xor(_share1, _share2)
+    _parts = []
+    _verify = []
+    _i = 0
+    while _i < len(_inv):
+        _masked = _b[_inv[_i]]
+        _raw = _xor(_masked, _ks(_key, _i, len(_masked)))
+        _parts.append(_raw)
+        _verify.append(_hh.sha256(_u32(_i) + _raw).digest())
+        _i += 1
 
-try:
-    _S=_hz.decompress(b''.join(_P)).decode('utf-8')
-except (ValueError, UnicodeDecodeError, _hz.error):
-    raise ImportError('HKD∞ protected payload reconstruction failed')
+    if tuple(_verify) != _leaves or _merkle(_verify) != _root:
+        raise ImportError('HKD protected payload integrity verification failed')
 
-_G=globals()
-_N={
-    '__name__':_G.get('__name__'),
-    '__doc__':_G.get('__doc__'),
-    '__package__':_G.get('__package__'),
-    '__loader__':_G.get('__loader__'),
-    '__spec__':_G.get('__spec__'),
-    '__file__':_G.get('__file__'),
-    '__cached__':_G.get('__cached__'),
-    '__builtins__':_G.get('__builtins__'),
-}
-_C=compile(_S,_G.get('__file__') or '<HKD-obfuscated>','exec',0,True,0)
-exec(_C,_N,_N)
+    try:
+        _source = _hz.decompress(b''.join(_parts)).decode('utf-8')
+    except Exception as _exc:
+        raise ImportError('HKD protected payload reconstruction failed: %s' % (_exc,))
 
-for _q,_v in list(_N.items()):
-    if _q != '__builtins__':
-        _G[_q]=_v
+    _filename = _g.get('__file__') or '<HKD-obfuscated>'
+    _code = compile(_source, _filename, 'exec', 0, True, 0)
 
-# Functions retain _N as their normal globals dictionary. Remove loader-only names
-# from the actual module namespace without mutating _N after source execution.
-del _B,_I,_L,_R,_S1,_S2,_K,_P,_V,_S,_C,_i,_m,_r,_x,_n4,_ks,_mr,_q,_v,_N,_G,_hh,_hz
+    # Discard the plaintext string before running user code.  CPython may reclaim
+    # it immediately; no plaintext source is retained as a module global.
+    del _source
+
+    # Exact module semantics: definitions execute in the actual module globals.
+    exec(_code, _g, _g)
+
+_hkd_v4_bootstrap(globals())
+del _hkd_v4_bootstrap
