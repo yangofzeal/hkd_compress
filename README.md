@@ -3,7 +3,7 @@
 ## Buy unrestricted size (no limits) hkd compress
 https://buy.stripe.com/6oUdR2bSX3bVazM7EPgUM03
 
-**HKD Compress** is a self-contained, lossless compression system based on HKD∞ structural reduction. On an English ASCII file, it beat bzip2 by 9.5% in compressed file size. It is designed to identify deterministic or reconstructible structure in an input, represent that structure compactly, and apply lossless compression to the remaining active information.
+**HKD Compress** is a self-contained, lossless compression system based on HKD∞ structural reduction. On an English ASCII file, it beat bzip2 by 15.5% in compressed file size. It is designed to identify deterministic or reconstructible structure in an input, represent that structure compactly, and apply lossless compression to the remaining active information.
 
 An `.hkd` archive is **self-contained**: decompression requires only the `.hkd` file. No base file, shared dictionary, receiver-side state, network connection, or external corpus is required.
 
